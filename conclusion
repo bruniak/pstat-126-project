@@ -1,0 +1,8 @@
+Throughout the modeling process, we found that:
+
+carat was by far the strongest predictor. Variables like table and x had little to no significant impact. Log-
+transformation greatly improved model fit and interpretation. Quality-related factors like color and clarity
+
+refined the model’s accuracy.
+This analysis confirms that while carat is the primary driver of diamond price, incorporating other physical
+and qualitative attributes leads to a more accurate and interpretable predictive model.
