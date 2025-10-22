@@ -1,0 +1,203 @@
+---
+title: "Final Project"
+author: "Sashwat Saha, Kevin Brunia"
+date: "2025-06-05"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readr)
+library(MASS)
+library(car)
+```
+
+# Part 1
+
+### 1.1
+
+```{r}
+set.seed(6425)
+df <- read_csv("Diamonds Prices2022.csv")
+df <- df[sample(nrow(df), 1000), ]
+```
+
+### 1.2
+
+```{r}
+summary(df)
+
+hist(df$carat, main="Carat Distribution", xlab="Carat")
+hist(df$depth, main="Depth Distribution", xlab="Depth")
+hist(df$table, main="Table Distribution", xlab="Table")
+hist(df$price, main="Price Distribution", xlab="Price")
+hist(df$x, main="X Dimension Distribution", xlab="X")
+hist(df$y, main="Y Dimension Distribution", xlab="Y")
+hist(df$z, main="Z Dimension Distribution", xlab="Z")
+
+barplot(table(df$cut), main="Cut Distribution", col="skyblue")
+barplot(table(df$color), main="Color Distribution", col="lightgreen")
+barplot(table(df$clarity), main="Clarity Distribution", col="orange")
+```
+Brief comments on data distribution:
+
+The 'carat' is skewed to the right, with a mean of 0.824 meaning that higher carat diamonds are rarer. The 'depth' is approximately normally distributed with a mean of 61.8. The 'table' variable is skewed to the right with a mean of 57.48. The 'price' variable is skewed to the right with a mean of 4177.2. The 'x', 'y', and 'z' variables are distributed mostly uniformly except for the tails, with means 5.8 for x and y, and 3.57 for y.
+
+### 1.3, 1.4
+
+```{r}
+numeric_vars <- df[, sapply(df, is.numeric)]
+cor_matrix <- cor(numeric_vars)
+print(cor_matrix)
+```
+```{r}
+df$cut <- as.factor(df$cut)
+df$color <- as.factor(df$color)
+df$clarity <- as.factor(df$clarity)
+
+model <- lm(price ~ ., data = df[, -1])  # remove 'Unnamed: 0'
+summary(model)
+```
+
+### 1.5
+
+After fitting the multiple linear regression model, several interesting findings emerged. At the 0.05 significance level, nearly all variables were found to have a statistically significant effect on the mean price of a diamond—except for table and x, which showed no significant impact on price. This is notable because one might expect that all physical characteristics of a diamond would influence its value, yet table, which represents the width of the diamond’s top facet, appears to have limited predictive power. We also see an oddly high p-value for color E relative to other colors. 
+
+The strongest correlation with price was observed for the carat variable, which makes sense since larger diamonds generally cost more. Additionally, the x, y, and z dimensions (length, width, and depth) also showed a high correlation with price, likely because they scale with carat and reflect the diamond’s physical size. However, it's interesting that even though x is highly correlated with both price and the other dimensions, it did not retain statistical significance in the full regression model. This could suggest multicollinearity, where the effect of x is absorbed by other, highly related variables like y, z, and carat.
+
+Overall, the results align with expectations in many ways: larger diamonds with better quality tend to cost more. owever, the lack of importance of the aforementioned variables despite their correlation highlights the complex interrelationships among the physical attributes and how not all apparent associations translate into independent contributions when modeled together.
+
+# Part 2
+
+### 2.1
+
+```{r}
+model1 <- lm(price ~ carat, data = df)
+
+summary(model1)
+```
+
+### 2.2
+
+```{r}
+confint(model1) 
+predict(model1, interval = "prediction")[1:5, ]
+```
+
+The coefficient for carat is 7644.39, meaning that for every 1-unit increase in carat weight, the model predicts an increase of approximately $7,644 in price.
+
+The intercept is -2191.34, which suggests that the model predicts a negative price when carat is zero—this is not meaningful in practice but expected for linear models outside of the data range.
+
+The $R^2$ is 0.8547, meaning around 85.5% of the variability in diamond price is explained by carat alone.
+
+The F-statistic is very large (5870) with an extremely low p-value, strongly rejecting the null hypothesis that the model explains no variance.
+
+The prediction intervals are very wide, especially at low and high carat values, reflecting variability in price not explained by carat alone.
+
+Residual standard error is 1567, indicating considerable absolute prediction error.
+
+### 2.3, 2.4
+
+```{r}
+par(mfrow = c(2, 2))
+plot(model1)
+
+df$log_price <- log(df$price)
+df$log_carat <- log(df$carat)
+
+model1_log <- lm(log_price ~ log_carat, data = df)
+
+summary(model1_log)
+```
+
+The residuals show signs of non-constant variance and potential right-skewness, suggesting a transformation may improve the model.
+
+The coefficient for log(carat) is 1.679, which means a 1% increase in carat is associated with a 1.68% increase in price. This makes interpretation more realistic for proportional change.
+
+The R² increased to 0.9315, indicating that 93.1% of the variance in log(price) is now explained by log(carat), an improvement of almost 8 percentage points.
+
+The residual standard error decreased dramatically to 0.2676, suggesting tighter model predictions.
+
+The residuals are more symmetrically distributed with reduced heteroskedasticity, indicating better model assumptions are met.
+
+### 2.5
+
+```{r}
+df$color <- as.factor(df$color)
+model2 <- lm(log_price ~ log_carat + depth + color, data = df)
+
+summary(model1)$adj.r.squared
+summary(model1_log)$adj.r.squared
+summary(model2)$adj.r.squared
+```
+
+### 2.6
+
+The model has improved between each iteration, from the first model, to model1, to model1 log, and model2.
+
+After modeling the relationship between carat and price, the adjusted $R^2$ indicated a strong linear association. However, the residual plots suggested non-constant variance and skewness, prompting a log transformation. This greatly improved model diagnostics. Adding variables like depth and color increased the adjusted R², indicating improved model fit. Interestingly, while carat dominated predictive power, color added subtle variation, reinforcing the importance of quality-based features in diamond pricing.
+
+# Part 3
+
+### 3.1
+
+```{r}
+full_model <- lm(log_price ~ log_carat + depth + table + cut + color + clarity, data = df)
+step_model_aic <- stepAIC(full_model, direction = "both", trace = FALSE)
+summary(step_model_aic)
+```
+
+The final model was selected using stepwise regression based on AIC, balancing goodness of fit and model complexity. After evaluating multiple combinations of predictors, the final model retained log_carat, depth, and a subset of the quality indicators (cut, color, and clarity), all of which had meaningful contributions to predicting log_price.
+
+### 3.2
+
+```{r}
+vif(step_model_aic)
+```
+
+There is no significant multicollinearity present in the model since all VIF factors are close to 1.
+
+### 3.3
+
+```{r}
+new_data <- data.frame(
+	log_carat = log(1),
+	depth = 61.5,
+	table = 55,
+	cut = factor("Ideal", levels = levels(df$cut)),
+	color = factor("E", levels = levels(df$color)),
+	clarity = factor("VS2", levels = levels(df$clarity))
+)
+
+ci_log <- predict(step_model_aic, newdata = new_data, interval = "confidence")
+
+pi_log <- predict(step_model_aic, newdata = new_data, interval = "prediction")
+
+ci_original <- exp(ci_log)
+pi_original <- exp(pi_log)
+
+ci_original
+pi_original
+```
+We are 95% confident that the mean price of diamonds with these characteristics lies between 5,967.85 and 6,308.76. This reflects the average expected value for all diamonds with these features.
+
+We are 95% confident that the price of a single future diamond with these characteristics will fall between 4,781.15 and 7,874.61. This is wider than the CI because it accounts for both model uncertainty and individual variation in price.
+
+### 3.4
+
+In this analysis, we explored various factors influencing diamond prices using regression modeling techniques. Our initial investigation began with a simple linear regression model using carat as the sole predictor of price. This model had an adjusted $R^2$ of 0.8545, demonstrating a strong positive linear relationship between carat and price. However, the residual plots showed non-constant variance and skewness, prompting a log transformation.
+
+After transforming both the response (price) and the predictor (carat) using log, the model significantly improved. The log model increased the adjusted $R^2$ to 93.1% and reduced the residual standard error, indicating a better fit and more reliable predictions.
+
+Next, we applied stepwise regression using AIC to select a more comprehensive model that included additional variables like depth, cut, color, and clarity. The resulting model achieved an adjusted $R^2$ of 94.6%, indicating that a substantial portion of price variability can be explained by a combination of carat and quality characteristics. We verified this model using VIF analysis, which showed no major multicollinearity among the retained predictors.
+
+For a sample diamond (1 carat, Ideal cut, E color, VS2 clarity, 61.5 depth, 55 table), we predicted a price of approximately 6,135.94. The 95% confidence interval for the mean price ranged from 5,967.85 to 6,308.76, while the 95% prediction interval for a single future diamond ranged more widely, from 4,781.15 to 7,874.61.
+
+Throughout the modeling process, we found that:
+
+carat was by far the strongest predictor.
+Variables like table and x had little to no significant impact.
+Log-transformation greatly improved model fit and interpretation.
+Quality-related factors like color and clarity refined the model’s accuracy.
+
+This analysis confirms that while carat is the primary driver of diamond price, incorporating other physical and qualitative attributes leads to a more accurate and interpretable predictive model.
